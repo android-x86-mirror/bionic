@@ -3557,6 +3557,7 @@ bool soinfo::link_image(const soinfo_list_t& global_group, const soinfo_list_t& 
 
 #if !defined(__LP64__)
   if (has_text_relocations) {
+#if !defined(__i386__) // ffmpeg says that they require text relocations on x86
     // Fail if app is targeting M or above.
     int app_target_api_level = get_application_target_sdk_version();
     if (app_target_api_level >= __ANDROID_API_M__) {
@@ -3565,6 +3566,7 @@ bool soinfo::link_image(const soinfo_list_t& global_group, const soinfo_list_t& 
                      "Enforced-for-API-level-23)", get_realpath());
       return false;
     }
+#endif
     // Make segments writable to allow text relocations to work properly. We will later call
     // phdr_table_protect_segments() after all of them are applied.
     DL_WARN_documented_change(__ANDROID_API_M__,
