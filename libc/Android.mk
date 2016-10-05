@@ -196,6 +196,8 @@ libc_bionic_ndk_src_files := \
     bionic/sched_getcpu.cpp \
     bionic/semaphore.cpp \
     bionic/send.cpp \
+    bionic/sendmsg.cpp \
+    bionic/sendto.cpp \
     bionic/setegid.cpp \
     bionic/__set_errno.cpp \
     bionic/seteuid.cpp \
@@ -241,6 +243,11 @@ libc_bionic_ndk_src_files := \
     bionic/wchar.cpp \
     bionic/wctype.cpp \
     bionic/wmempcpy.cpp \
+    bionic/writev.cpp \
+
+libc_bionic_ndk_src_files += \
+    codeaurora/PropClientDispatch.cpp \
+    codeaurora/PropClientDispatchWrite.cpp
 
 libc_bionic_src_files :=
 
@@ -621,6 +628,10 @@ ifeq ($(TARGET_ARCH),$(filter $(TARGET_ARCH),mips mips64))
   use_clang := false
 endif
 
+ifeq ($(TARGET_NEEDS_GCC_LIBC),true)
+  use_clang := false
+endif
+
 ifeq ($(use_clang),)
   use_clang := true
 endif
@@ -638,6 +649,10 @@ endif
 
 libc_malloc_src := bionic/jemalloc_wrapper.cpp
 libc_common_c_includes += external/jemalloc/include
+
+ifeq ($(BOARD_USES_LEGACY_MMAP),true)
+  libc_common_cflags += -DLEGACY_MMAP
+endif
 
 # Define some common conlyflags
 libc_common_conlyflags := \
@@ -1010,6 +1025,12 @@ LOCAL_CFLAGS := $(libc_common_cflags) \
 
 LOCAL_CONLYFLAGS := $(libc_common_conlyflags)
 LOCAL_CPPFLAGS := $(libc_common_cppflags) -Wold-style-cast
+
+
+ifeq ($(BOARD_USES_LIBC_WRAPPER),true)
+LOCAL_CPPFLAGS += -DUSE_WRAPPER
+endif
+
 LOCAL_C_INCLUDES := $(libc_common_c_includes) bionic/libstdc++/include
 LOCAL_MODULE := libc_bionic
 LOCAL_CLANG := $(use_clang)
@@ -1035,10 +1056,19 @@ include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := $(libc_bionic_ndk_src_files)
 LOCAL_CFLAGS := $(libc_common_cflags) \
-    -Wframe-larger-than=2048 \
+    -Wframe-larger-than=2048
+
+ifeq ($(BOARD_USES_LIBC_WRAPPER),true)
+LOCAL_CFLAGS += -DUSE_WRAPPER
+endif
 
 LOCAL_CONLYFLAGS := $(libc_common_conlyflags)
-LOCAL_CPPFLAGS := $(libc_common_cppflags) -Wold-style-cast
+LOCAL_CPPFLAGS := $(libc_common_cppflags) -Wold-style-cast \
+
+ifeq ($(BOARD_USES_LIBC_WRAPPER),true)
+LOCAL_CPPFLAGS += -DUSE_WRAPPER
+endif
+
 LOCAL_C_INCLUDES := $(libc_common_c_includes) bionic/libstdc++/include
 LOCAL_MODULE := libc_bionic_ndk
 LOCAL_CLANG := $(use_clang)
@@ -1371,6 +1401,11 @@ LOCAL_SRC_FILES := \
     bionic/NetdClient.cpp \
     arch-common/bionic/crtend_so.S \
 
+ifeq ($(BOARD_USES_LIBC_WRAPPER),true)
+    LOCAL_SRC_FILES += codeaurora/PropClient.cpp
+    LOCAL_CPPFLAGS += -DUSE_WRAPPER
+endif
+
 LOCAL_MODULE := libc
 LOCAL_CLANG := $(use_clang)
 LOCAL_REQUIRED_MODULES := tzdata
@@ -1448,6 +1483,9 @@ LOCAL_SRC_FILES_arm += \
 
 LOCAL_SANITIZE := never
 LOCAL_NATIVE_COVERAGE := $(bionic_coverage)
+
+# Allow devices to provide additional symbols
+LOCAL_WHOLE_STATIC_LIBRARIES += $(BOARD_PROVIDES_ADDITIONAL_BIONIC_STATIC_LIBS)
 
 include $(BUILD_SHARED_LIBRARY)
 
